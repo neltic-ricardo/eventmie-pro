@@ -1,0 +1,61 @@
+version: "3.8"
+services:
+  app:
+    image: laravel-app
+    container_name: laravel
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: src/Dockerfile
+    tty: true
+    volumes:
+      - ./src:/var/www/html
+    networks:
+      laravel-net:
+        ipv4_address: 172.28.0.7
+
+  app-db:
+    image: mysql/mysql-server:8.0.32-1.2.11-server
+    platform: linux/arm64
+    container_name: app-db
+    restart: unless-stopped
+    tty: true
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    ports:
+      - "3306:3306"
+    env_file:
+      - ./src/.env
+    volumes:
+      - ./data/app:/var/lib/mysql
+    networks:
+      laravel-net:
+        ipv4_address: 172.28.0.8
+
+  proxy:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: proxy
+    restart: unless-stopped
+    ports:
+      - 81:81
+    volumes:
+      - ./data/proxy:/data
+      - ./letsencrypt:/etc/letsencrypt
+    networks:
+      laravel-net:
+        ipv4_address: 172.28.0.11
+
+networks:
+  laravel-net:
+    name: laravel-net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          ip_range: 172.28.5.0/24
+          gateway: 172.28.5.25
